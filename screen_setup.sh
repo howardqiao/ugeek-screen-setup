@@ -144,8 +144,8 @@ function menu_reboot(){
 }
 function menu_main(){
 	OPTION=$(whiptail --title "UGEEK WORKSHOP" \
-	--menu "http://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com\nSelect the appropriate options:" \
-	16 60 6 \
+	--menu "Select the appropriate options:" \
+	14 60 6 \
 	"1" "Output <$OUTPUT_DEVICE>." \
 	"2" "Resolution <$RESOLUTION>." \
 	"3" "Rotate <$ROTATE°>." \
@@ -202,6 +202,7 @@ function apply(){
 	esac
 	menu_reboot
 }
+whiptail --title "UGEEK WORKSHOP" --msgbox "Setup tools for ugeek screens.\nhttp://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com" 10 78
 while true
 do
 menu_main
