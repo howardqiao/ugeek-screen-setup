@@ -1,0 +1,4 @@
+UGeek Screen Setup Tools
+wget https://github.com/howardqiao/ugeek-screen-setup/raw/master/screen_setup.sh
+chmod +x ./screen_setup.sh
+sudo ./screen_setup.sh
