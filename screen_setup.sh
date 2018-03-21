@@ -53,9 +53,11 @@ function disable_cmdline_tft(){
 function enable_blanking(){
 	disable_blanking
 	sed -i '/^sh -c "TERM=linux/d' /etc/rc.local
+	sed -i -e 's/^xserver-command=X -s 0 dpms/#xserver-command=X/' /etc/lightdm/lightdm.conf
 }
 function disable_blanking(){
 	sed -i '/exit 0/ish -c "TERM=linux setterm -blank 0 >/dev/tty0"' /etc/rc.local
+	sed -i -e 's/^#xserver-command=X/xserver-command=X -s 0 dpms/' /etc/lightdm/lightdm.conf
 }
 function enable_tftx(){
 	if [ -e "/usr/share/X11/xorg.conf.d/99-fbturbo.conf" ] ; then
