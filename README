@@ -19,3 +19,10 @@ sudo ./screen_setup.sh
           │                                                          │
           └──────────────────────────────────────────────────────────┘
 
+Option 1: Select ouput device(HDMI | TFT Screen | Both)
+Option 2: Select resolution(Auto | 800x600 | 640x480 | 320x240)
+Option 3: Select rotate(0 | 90 | 180 | 270)
+Option 4: Select screen blanking(Yes | No)
+Option 5: Apply new settings.
+Option 6: Exit
+
