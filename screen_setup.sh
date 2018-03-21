@@ -202,7 +202,7 @@ function apply(){
 	esac
 	menu_reboot
 }
-whiptail --title "UGEEK WORKSHOP" --msgbox "Setup tools for ugeek screens.\nhttp://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com" 10 78
+whiptail --title "UGEEK WORKSHOP" --msgbox "Setup tools for ugeek screens.\nhttp://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com" 10 60
 while true
 do
 menu_main
