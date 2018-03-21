@@ -1,4 +1,6 @@
 UGeek Screen Setup Tools
+http://ugeek.aliexpress.com
+http://ukonline2000.taobao.com
 wget https://github.com/howardqiao/ugeek-screen-setup/raw/master/screen_setup.sh
 chmod +x ./screen_setup.sh
 sudo ./screen_setup.sh
