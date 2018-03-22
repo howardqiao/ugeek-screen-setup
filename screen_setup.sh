@@ -11,6 +11,8 @@ HDMIMODE="4"
 HDMICVT=""
 OUTPUT_DEVICE="BOTH"
 SCREEN_BLANKING="No"
+TITLE="UGEEK WORKSHOP"
+BACKTITLE="UGEEK WORKSHOP [ ugeek.aliexpress.com | ukonline2000.taobao.com ]"
 
 function enable_tft(){
 	#enable spi:dtparam=spi=on
@@ -102,7 +104,10 @@ function enable_fbcp(){
 }
 menu_outputdevice(){
 	OPTION_OUTPUT=$(whiptail --title "OUTPUT DEVICE" \
+	--backtitle "$BACKTITLE" \
+	--nocancel \
 	--menu "OUTPUT DEVICE:$OUTPUT_DEVICE" \
+	--default-item "3" \
 	14 60 3 \
 	"1" "HDMI" \
 	"2" "TFT Screen" \
@@ -111,7 +116,10 @@ menu_outputdevice(){
 }
 menu_resolution(){
 	OPTION_RES=$(whiptail --title "SCREEN RESOLUTION" \
+	--backtitle "$BACKTITLE" \
+	--nocancel \
 	--menu "Screen resolution:$RESOLUTION" \
+	--default-item "3" \
 	14 60 4 \
 	"1" "Auto" \
 	"2" "800*600" \
@@ -122,6 +130,9 @@ menu_resolution(){
 menu_rotate(){
 	OPTION_ROTATE=$(whiptail --title "SCREEN ROTATE" \
 	--menu "Screen rotate:$ROTATE°" \
+	--backtitle "$BACKTITLE" \
+	--nocancel \
+	--default-item "2" \
 	14 60 4 \
 	"1" "0°" \
 	"2" "90°" \
@@ -132,21 +143,29 @@ menu_rotate(){
 function menu_blanking(){
 	OPTION_BLANKING=$(whiptail --title "SCREEN BLANKING" \
 	--menu "Screen blanking:$SCREEN_BLANKING" \
+	--backtitle "$BACKTITLE" \
+	--nocancel \
+	--default-item "2" \
 	14 60 2 \
 	"1" "Enable" \
 	"2" "Disble" 3>&1 1>&2 2>&3)
 	return $OPTION_BLANKING
 }
 function menu_reboot(){
-	if (whiptail --title "SYSTEM REBOOT" --yes-button "Reboot" --no-button "Exit" --yesno "Reboot system to apply new settings?" 10 60) then
+	if (whiptail --title "$TITLE" \
+		--yes-button "Reboot" \
+		--no-button "Exit" \
+		--yesno "Reboot system to apply new settings?" 10 60) then
 		reboot
 	else
 		exit 1
 	fi
 }
 function menu_main(){
-	OPTION=$(whiptail --title "UGEEK WORKSHOP" \
+	OPTION=$(whiptail --title "$TITLE" \
 	--menu "Select the appropriate options:" \
+	--backtitle "$BACKTITLE" \
+	--nocancel \
 	14 60 6 \
 	"1" "Output <$OUTPUT_DEVICE>." \
 	"2" "Resolution <$RESOLUTION>." \
@@ -178,10 +197,6 @@ function apply_both(){
 	disable_tftx
 	enable_fbcp
 }
-if [ $UID -ne 0 ]; then
-	whiptail --title "Message Box" --msgbox "Superuser privileges are required to run this script.\ne.g. \"sudo $0\"" 10 60
-    exit 1
-fi
 function apply(){
 	case $OUTPUT_DEVICE in
 		"HDMI")
@@ -204,7 +219,12 @@ function apply(){
 	esac
 	menu_reboot
 }
-whiptail --title "UGEEK WORKSHOP" --msgbox "Setup tools for ugeek screens.\nhttp://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com" 10 60
+if [ $UID -ne 0 ]; then
+	whiptail --title "UGEEK WORKSHOP" \
+	--msgbox "Superuser privileges are required to run this script.\ne.g. \"sudo $0\"" 10 60
+    exit 1
+fi
+# whiptail --title "$TITLE" --msgbox "Setup tools for ugeek screens.\nhttp://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com" --backtitle "$BACKTITLE" 10 60
 while true
 do
 menu_main
