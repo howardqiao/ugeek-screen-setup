@@ -298,6 +298,9 @@ case $? in
 	apply
 	;;
 	6)
+	echo "     [ UGEEK WORKSHOP ]"
+	echo "http://ugeek.aliexpress.com"
+	echo "http://ukonline2000.taobao.com"
 	exit 1
 	;;
 esac
