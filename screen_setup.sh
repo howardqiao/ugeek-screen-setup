@@ -608,6 +608,7 @@ case $? in
 			--yesno "Install 3.5\" screen?" 10 60) then
 		disable_35
 		enable_35
+		fi
 		menu_reboot
 		;;
 		4)

@@ -4,25 +4,18 @@ http://ukonline2000.taobao.com
 wget https://github.com/howardqiao/ugeek-screen-setup/raw/master/screen_setup.sh
 chmod +x ./screen_setup.sh
 sudo ./screen_setup.sh
+
           ┌────────────────────┤ UGEEK WORKSHOP ├────────────────────┐
-          │ Select the appropriate options:                          │
+          │ Please select your device:                               │
           │                                                          │
-          │                  1 Output <BOTH>.                        │
-          │                  2 Resolution <640*480>.                 │
-          │                  3 Rotate <90°>.                         │
-          │                  4 Blanking <No>.                        │
-          │                  5 Apply new settings.                   │
-          │                  6 Exit.                                 │
+          │           1 TFT 2.2"                                     │
+          │           2 TFT 2.4"                                     │
+          │           3 Raspi HD-TFT HAT 3.5"                        │
+          │           4 Raspi HD-TFT HAT 3.5" Touchscreen            │
+          │           5 Exit.                                        │
           │                                                          │
           │                                                          │
-          │              <Ok>                  <Cancel>              │
+          │                                                          │
+          │                          <Ok>                            │
           │                                                          │
           └──────────────────────────────────────────────────────────┘
-
-Option 1: Select ouput device(HDMI | TFT Screen | Both)
-Option 2: Select resolution(Auto | 800x600 | 640x480 | 320x240)
-Option 3: Select rotate(0 | 90 | 180 | 270)
-Option 4: Select screen blanking(Yes | No)
-Option 5: Apply new settings.
-Option 6: Exit
-
