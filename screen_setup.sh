@@ -22,6 +22,7 @@ TRANSFORM_24r180="-1.115235 -0.010589 1.057967 -0.005964 -1.107968 1.025780 0 0 
 TRANSFORM_24r270="-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1"
 TRANSFORM=$TRANSFORM_24r270
 SOFTWARE_LIST="xserver-xorg-input-evdev python-dev python-pip python-smbus python-wxgtk3.0 matchbox-keyboard"
+FILE_FBTURBO="/etc/X11/xorg.conf.d/99-fbturbo.conf"
 
 function enable_tft(){
 	#enable spi:dtparam=spi=on
@@ -74,7 +75,7 @@ function enable_tftx(){
 	if [ -e "/usr/share/X11/xorg.conf.d/99-fbturbo.conf" ] ; then
 		rm /usr/share/X11/xorg.conf.d/99-fbturbo.conf
 	fi
-	touch /usr/share/X11/xorg.conf.d/99-fbturbo.conf
+	touch /etc/X11/xorg.conf.d/99-fbturbo.conf
 	cat << EOF > /usr/share/X11/xorg.conf.d/99-fbturbo.conf
 Section "Device"
   Identifier "Adafruit PiTFT"
@@ -84,19 +85,9 @@ EndSection
 EOF
 }
 function disable_tftx(){
-	if [ -e "/usr/share/X11/xorg.conf.d/99-fbturbo.conf" ] ; then
-		rm /usr/share/X11/xorg.conf.d/99-fbturbo.conf
+	if [ -e "$FILE_FB_TURBO" ] ; then
+		rm $FILE_FBTURBO
 	fi
-	touch /usr/share/X11/xorg.conf.d/99-fbturbo.conf
-	cat << EOF > /usr/share/X11/xorg.conf.d/99-fbturbo.conf
-Section "Device"
-        Identifier      "Allwinner A10/A13 FBDEV"
-        Driver          "fbturbo"
-        Option          "fbdev" "/dev/fb0"
-
-        Option          "SwapbuffersWait" "true"
-EndSection
-EOF
 }
 function disable_fbcp(){
 	sed -i '/^\/usr\/local\/bin\/fbcp/d' /etc/rc.local
@@ -403,15 +394,15 @@ EOF
 	echo "enable desktop"
 	# 启用桌面
 	enable_tftx
-	
+
 	# 安装xserver-xorg-input-evdev
+	echo "install software"
 	SOFT=$(dpkg -l $SOFTWARE_LIST | grep "<none>")
 	if [ -n "$SOFT" ]; then
 		apt update
 		apt -y install $SOFTWARE_LIST
 	fi
 	#sudo dpkg -i -B ./xserver-xorg-input-evdev_2.10.5-1_armhf.deb 2> error_output.txt
-	
 	sudo cp -rf /usr/share/X11/xorg.conf.d/10-evdev.conf /usr/share/X11/xorg.conf.d/45-evdev.conf
 
 	sudo sync
