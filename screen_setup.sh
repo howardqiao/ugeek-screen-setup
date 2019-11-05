@@ -52,7 +52,7 @@ function disable_tft(){
 function enable_cmdline_tft(){
 	FBONCONFIGED=$(cat /boot/cmdline.txt | grep "fbcon=map:10")
 	if [ -z "$FBONCONFIGED" ]; then
-		sed -i -e 's/rootwait/rootwait fbcon=map:10 fbcon=font:$FONT/' $CMDLINE
+		sed -i -e 's/rootwait/rootwait fbcon=map:10 fbcon=font:'$FONT'/' $CMDLINE
 	fi
 }
 function disable_cmdline_tft(){
@@ -345,17 +345,23 @@ function enable_tft24(){
 	echo "Setup 2.4\" screen"
 
 	if [ -f /etc/X11/xorg.conf.d/40-libinput.conf ]; then
-	sudo rm -rf /etc/X11/xorg.conf.d/40-libinput.conf
+		echo "rm -rf /etc/X11/xorg.conf.d/40-libinput.conf"
+		sudo rm -rf /etc/X11/xorg.conf.d/40-libinput.conf
 	fi
 	if [ ! -d /etc/X11/xorg.conf.d ]; then
-	sudo mkdir -p /etc/X11/xorg.conf.d
+		echo "mkdir -p /etc/X11/xorg.conf.d"
+		sudo mkdir -p /etc/X11/xorg.conf.d
 	fi
 
 	#root_dev=`grep -oPr "root=[^\s]*" /boot/cmdline.txt | awk -F= '{printf $NF}'`
-	# 修改/boot/cmdline.txt 
+	# 修改/boot/cmdline.txt
+	echo "patch cmdline.txt"
 	disable_cmdline_tft
 	enable_cmdline_tft
+
 	# 修改Config文件
+	echo "patch /boot/config.txt"
+
 	sed -i '/^dtoverlay=pitft/d' $CONFIG
 	sed -i '/^hdmi_mode=/d' $CONFIG
 	sed -i '/^hdmi_group=/d' $CONFIG
@@ -363,14 +369,15 @@ function enable_tft24(){
 	sed -i '/^hdmi_force_hotplug=/d' $CONFIG
 	sed -i '/^dtparam=i2c_arm=/d' $CONFIG
 	sed -i '/^dtparam=spi=/d' $CONFIG
-	
+
 	echo "hdmi_force_hotplug=1" >> $CONFIG
 	echo "dtparam=i2c_arm=on" >> $CONFIG
 	echo "dtparam=spi=on" >> $CONFIG
 	echo "dtoverlay=pitft28-resistive,rotate=$ROTATE,speed=48000000,fps=30" >> $CONFIG
 
+	echo "generate /etc/X11/xorg.conf.d/99-calibration.conf"
 	# 根据选择的方向生成校准文件
-	case $Rotate in 
+	case $Rotate in
 		0)
 		TRANSFORM=$TRANSFORM_24r0
 		;;
@@ -393,6 +400,7 @@ Section "InputClass"
         Option "TransformationMatrix" "$TRANSFORM"
 EndSection
 EOF
+	echo "enable desktop"
 	# 启用桌面
 	enable_tftx
 	
