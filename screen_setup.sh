@@ -21,7 +21,7 @@ TRANSFORM_24r90="0.014773 -1.132874 1.033662 1.118701 0.009656 -0.065273 0 0 1"
 TRANSFORM_24r180="-1.115235 -0.010589 1.057967 -0.005964 -1.107968 1.025780 0 0 1"
 TRANSFORM_24r270="-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1"
 TRANSFORM=$TRANSFORM_24r270
-SOFTWARE_LIST="xserver-xorg-input-evdev python-dev python-pip python-smbus python-wxgtk3.0 matchbox-keyboard"
+SOFTWARE_LIST="xserver-xorg-input-evdev xserver-xorg-input-libinput python-dev python-pip python-smbus python-wxgtk3.0 matchbox-keyboard"
 FILE_FBTURBO="/etc/X11/xorg.conf.d/99-fbturbo.conf"
 
 function enable_tft(){
@@ -42,6 +42,7 @@ function enable_tft(){
 	fi
 	echo "hdmi_force_hotplug=1" >> $CONFIG
 }
+
 function disable_tft(){
 	#disable pitft overlay
 	sed -i '/^dtoverlay=pitft22/d' $CONFIG
@@ -50,33 +51,38 @@ function disable_tft(){
 	sed -i '/^hdmi_cvt=/d' $CONFIG
 	sed -i '/^hdmi_force_hotplug=/d' $CONFIG
 }
+
 function enable_cmdline_tft(){
 	FBONCONFIGED=$(cat /boot/cmdline.txt | grep "fbcon=map:10")
 	if [ -z "$FBONCONFIGED" ]; then
 		sed -i -e 's/rootwait/rootwait fbcon=map:10 fbcon=font:'$FONT'/' $CMDLINE
 	fi
 }
+
 function disable_cmdline_tft(){
 	#sed -i -e 's/rootwait fbcon=map:10 fbcon=font:VGA8x8/rootwait/' /boot/cmdline.txt
 	sed -i -e 's/fbcon=map:10 //' $CMDLINE
 	sed -i -e 's/fbcon=font:ProFont6x11 //' $CMDLINE
 	sed -i -e 's/fbcon=font:VGA8x8 //' $CMDLINE
 }
+
 function enable_blanking(){
 	disable_blanking
 	sed -i '/^sh -c "TERM=linux/d' /etc/rc.local
 	sed -i -e 's/^xserver-command=X -s 0 dpms/#xserver-command=X/' /etc/lightdm/lightdm.conf
 }
+
 function disable_blanking(){
 	sed -i '/exit 0/ish -c "TERM=linux setterm -blank 0 >/dev/tty0"' /etc/rc.local
 	sed -i -e 's/^#xserver-command=X/xserver-command=X -s 0 dpms/' /etc/lightdm/lightdm.conf
 }
+
 function enable_tftx(){
 	if [ -e "/usr/share/X11/xorg.conf.d/99-fbturbo.conf" ] ; then
-		rm /usr/share/X11/xorg.conf.d/99-fbturbo.conf
+		rm $FILE_FBTURBO
 	fi
-	touch /etc/X11/xorg.conf.d/99-fbturbo.conf
-	cat << EOF > /usr/share/X11/xorg.conf.d/99-fbturbo.conf
+	touch $FILE_FBTURBO
+	cat << EOF > $FILE_FBTURBO
 Section "Device"
   Identifier "Adafruit PiTFT"
   Driver "fbdev"
@@ -84,14 +90,17 @@ Section "Device"
 EndSection
 EOF
 }
+
 function disable_tftx(){
 	if [ -e "$FILE_FB_TURBO" ] ; then
 		rm $FILE_FBTURBO
 	fi
 }
+
 function disable_fbcp(){
 	sed -i '/^\/usr\/local\/bin\/fbcp/d' /etc/rc.local
 }
+
 function enable_fbcp(){
 	if [ -e "$FBCP" ]; then
 		echo ""
@@ -102,6 +111,7 @@ function enable_fbcp(){
 	disable_fbcp
 	sed -i '/exit 0/i\/usr\/local\/bin\/fbcp &' /etc/rc.local
 }
+
 menu_outputdevice(){
 	OPTION_OUTPUT=$(whiptail --title "OUTPUT DEVICE" \
 	--backtitle "$BACKTITLE" \
@@ -114,6 +124,7 @@ menu_outputdevice(){
 	"3" "HDMI & TFT Screen" 3>&1 1>&2 2>&3)
 	return $OPTION_OUTPUT
 }
+
 menu_resolution(){
 	OPTION_RES=$(whiptail --title "SCREEN RESOLUTION" \
 	--backtitle "$BACKTITLE" \
@@ -127,6 +138,7 @@ menu_resolution(){
 	"4" "320*240" 3>&1 1>&2 2>&3)
 	return $OPTION_RES
 }
+
 menu_rotate(){
 	OPTION_ROTATE=$(whiptail --title "SCREEN ROTATE" \
 	--menu "Screen rotate:$ROTATE°" \
@@ -140,6 +152,7 @@ menu_rotate(){
 	"4" "270°" 3>&1 1>&2 2>&3)
 	return $OPTION_ROTATE
 }
+
 function menu_blanking(){
 	OPTION_BLANKING=$(whiptail --title "SCREEN BLANKING" \
 	--menu "Screen blanking:$SCREEN_BLANKING" \
@@ -151,6 +164,7 @@ function menu_blanking(){
 	"2" "Disble" 3>&1 1>&2 2>&3)
 	return $OPTION_BLANKING
 }
+
 function menu_reboot(){
 	if (whiptail --title "$TITLE" \
 		--yes-button "Reboot" \
@@ -161,6 +175,7 @@ function menu_reboot(){
 		exit 1
 	fi
 }
+
 function menu_deviceselect(){
 	OPTION=$(whiptail --title "$TITLE" \
 	--menu "Please select your device:" \
@@ -174,6 +189,7 @@ function menu_deviceselect(){
 	"5" "Exit."  3>&1 1>&2 2>&3)
 	return $OPTION
 }
+
 function menu_22(){
 	OPTION=$(whiptail --title "$TITLE" \
 	--menu "Select the appropriate options:" \
@@ -188,6 +204,7 @@ function menu_22(){
 	"6" "Exit."  3>&1 1>&2 2>&3)
 	return $OPTION
 }
+
 function menu_24(){
 	OPTION=$(whiptail --title "$TITLE" \
 	--menu "Select the appropriate options:" \
@@ -195,10 +212,12 @@ function menu_24(){
 	--nocancel \
 	14 60 6 \
 	"1" "Rotate <$ROTATE°>." \
-	"2" "Apply new settings." \
-	"3" "Return."  3>&1 1>&2 2>&3)
+	"2" "Blanking <$SCREEN_BLANKING>." \
+	"3" "Apply new settings." \
+	"4" "Return."  3>&1 1>&2 2>&3)
 	return $OPTION
 }
+
 function apply_hdmi(){
 	disable_tft
 	disable_cmdline_tft
@@ -368,17 +387,21 @@ function enable_tft24(){
 
 	echo "generate /etc/X11/xorg.conf.d/99-calibration.conf"
 	# 根据选择的方向生成校准文件
-	case $Rotate in
+	case $ROTATE in
 		0)
+		echo "ROTATE <none>"
 		TRANSFORM=$TRANSFORM_24r0
 		;;
 		90)
+		echo "ROTATE 90"
 		TRANSFORM=$TRANSFORM_24r90
 		;;
 		180)
+		echo "ROTATE 180"
 		TRANSFORM=$TRANSFORM_24r180
 		;;
 		270)
+		echo "ROTATE 270"
 		TRANSFORM=$TRANSFORM_24r270
 		;;
 	esac
@@ -399,16 +422,18 @@ EOF
 	echo "install software"
 	SOFT=$(dpkg -l $SOFTWARE_LIST | grep "<none>")
 	if [ -n "$SOFT" ]; then
+		echo "test"
 		apt update
 		apt -y install $SOFTWARE_LIST
 	fi
 	#sudo dpkg -i -B ./xserver-xorg-input-evdev_2.10.5-1_armhf.deb 2> error_output.txt
-	sudo cp -rf /usr/share/X11/xorg.conf.d/10-evdev.conf /usr/share/X11/xorg.conf.d/45-evdev.conf
+	#sudo cp -rf /usr/share/X11/xorg.conf.d/10-evdev.conf /usr/share/X11/xorg.conf.d/45-evdev.conf
 
 	sudo sync
 	sudo sync
 	sleep 1
 }
+
 function setup_24(){
 	menu_24
 	case $? in
@@ -431,10 +456,21 @@ function setup_24(){
 		setup_24
 		;;
 		2)
+		menu_blanking
+		case $? in 
+			1)
+			SCREEN_BLANKING="Yes"
+			;;
+			2)
+			SCREEN_BLANKING="No"
+			;;
+		esac
+		;;
+		3)
 		enable_tft24
 		menu_reboot
 		;;
-		3)
+		4)
 		menu_deviceselect
 		;;
 	esac
