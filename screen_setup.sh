@@ -7,7 +7,7 @@ FBCP="/usr/local/bin/fbcp"
 SPEED="80000000"
 ROTATE="90"
 FPS="60"
-RESOLUTION="640*480"
+RESOLUTION="640x480"
 HDMIGROUP="2"
 HDMIMODE="4"
 HDMICVT=""
@@ -23,14 +23,26 @@ TRANSFORM_24r270="-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1
 TRANSFORM=$TRANSFORM_24r270
 SOFTWARE_LIST="xserver-xorg-input-evdev xserver-xorg-input-libinput python-dev python-pip python-smbus python-wxgtk3.0 matchbox-keyboard"
 FILE_FBTURBO="/etc/X11/xorg.conf.d/99-fbturbo.conf"
+FILE_CALIBRATION="/etc/X11/xorg.conf.d/99-calibration.conf"
+XRANDRSETTINGS="/etc/X11/Xsession.d/45-custom_xrandr-settings"
 
-function enable_tft(){
-	#enable spi:dtparam=spi=on
-	#sed -i 's/.*dtparam=spi=.*/dtparam=spi=on/g' $CONFIG
-	disable_tft
-	sed -i '/^dtparam=spi/d' $CONFIG
+function check_sysreq(){
+	SOFT=$(dpkg -l $SOFTWARE_LIST | grep "un  ")
+	if [ -n "$SOFT" ]; then
+		apt update
+		apt -y install $SOFTWARE_LIST
+	fi
+}
+
+# Enable tft in config.txt
+function enable_tft_config(){
+	echo "dtparam=i2c_arm=on" >> $CONFIG
 	echo "dtparam=spi=on" >> $CONFIG
-	echo "dtoverlay=pitft22,speed=$SPEED,rotate=$ROTATE,fps=$FPS" >> $CONFIG
+	if [ "$DEVICE" == "2.2" ]; then
+		echo "dtoverlay=pitft22,speed=$SPEED,rotate=$ROTATE,fps=$FPS" >> $CONFIG
+	elif [ "$DEVICE" == "2.4" ]; then
+		echo "dtoverlay=pitft28-resistive,speed=$SPEED,rotate=$ROTATE,fps=$FPS" >> $CONFIG
+	fi
 	if [ -n "$HDMIGROUP" ]; then
 		echo "hdmi_group=$HDMIGROUP" >> $CONFIG
 	fi
@@ -41,26 +53,28 @@ function enable_tft(){
 		echo "hdmi_cvt=$HDMICVT" >> $CONFIG
 	fi
 	echo "hdmi_force_hotplug=1" >> $CONFIG
+	
 }
 
-function disable_tft(){
-	#disable pitft overlay
-	sed -i '/^dtoverlay=pitft22/d' $CONFIG
+# Disable tft in config.txt
+function disable_tft_config(){
+	sed -i '/^dtparam=spi/d' $CONFIG
+	sed -i '/^dtparam=i2c_arm=/d' $CONFIG
+	sed -i '/^dtoverlay=pitft/d' $CONFIG
 	sed -i '/^hdmi_mode=/d' $CONFIG
 	sed -i '/^hdmi_group=/d' $CONFIG
 	sed -i '/^hdmi_cvt=/d' $CONFIG
 	sed -i '/^hdmi_force_hotplug=/d' $CONFIG
 }
 
-function enable_cmdline_tft(){
+function enable_tft_cmdline(){
 	FBONCONFIGED=$(cat /boot/cmdline.txt | grep "fbcon=map:10")
 	if [ -z "$FBONCONFIGED" ]; then
 		sed -i -e 's/rootwait/rootwait fbcon=map:10 fbcon=font:'$FONT'/' $CMDLINE
 	fi
 }
 
-function disable_cmdline_tft(){
-	#sed -i -e 's/rootwait fbcon=map:10 fbcon=font:VGA8x8/rootwait/' /boot/cmdline.txt
+function disable_tft_cmdline(){
 	sed -i -e 's/fbcon=map:10 //' $CMDLINE
 	sed -i -e 's/fbcon=font:ProFont6x11 //' $CMDLINE
 	sed -i -e 's/fbcon=font:VGA8x8 //' $CMDLINE
@@ -77,7 +91,7 @@ function disable_blanking(){
 	sed -i -e 's/^#xserver-command=X/xserver-command=X -s 0 dpms/' /etc/lightdm/lightdm.conf
 }
 
-function enable_tftx(){
+function enable_tft_x(){
 	if [ -e "/usr/share/X11/xorg.conf.d/99-fbturbo.conf" ] ; then
 		rm $FILE_FBTURBO
 	fi
@@ -91,9 +105,19 @@ EndSection
 EOF
 }
 
-function disable_tftx(){
+function disable_tft_x(){
 	if [ -e "$FILE_FB_TURBO" ] ; then
 		rm $FILE_FBTURBO
+	fi
+}
+
+function enable_both_x(){
+	echo "xrandr --output HDMI-1 --mode \"$RESOLUTION\"" > $XRANDRSETTINGS
+}
+
+function disable_both_x(){
+	if [ -f "$XRANDRSETTINGS" ]; then
+		rm $XRANDRSETTINGS
 	fi
 }
 
@@ -102,54 +126,72 @@ function disable_fbcp(){
 }
 
 function enable_fbcp(){
-	if [ -e "$FBCP" ]; then
-		echo ""
-	else
-		wget https://github.com/howardqiao/zpod/raw/master/zpod_res/fbcp -O $FBCP
-		chmod +x $FBCP
+	if [ ! -f "$FBCP" ]; then
+		if [ -f "bin/fbcp" ]; then
+			sudo cp -a /bin/fbcp $FBCP
+		else
+			wget https://github.com/howardqiao/zpod/raw/master/zpod_res/fbcp -O $FBCP
+			chmod +x $FBCP
+		fi
 	fi
 	disable_fbcp
 	sed -i '/exit 0/i\/usr\/local\/bin\/fbcp &' /etc/rc.local
 }
 
-menu_outputdevice(){
+function menu_outputdevice(){
 	OPTION_OUTPUT=$(whiptail --title "OUTPUT DEVICE" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
 	--menu "OUTPUT DEVICE:$OUTPUT_DEVICE" \
 	--default-item "3" \
 	14 60 3 \
-	"1" "HDMI" \
-	"2" "TFT Screen" \
-	"3" "HDMI & TFT Screen" 3>&1 1>&2 2>&3)
+	"1" "TFT" \
+	"2" "HDMI & TFT" \
+	"3" "Return" 3>&1 1>&2 2>&3)
 	return $OPTION_OUTPUT
 }
 
-menu_resolution(){
+function menu_resolution(){
 	OPTION_RES=$(whiptail --title "SCREEN RESOLUTION" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
 	--menu "Screen resolution:$RESOLUTION" \
-	--default-item "3" \
-	14 60 4 \
-	"1" "Auto" \
-	"2" "800*600" \
-	"3" "640*480" \
-	"4" "320*240" 3>&1 1>&2 2>&3)
+	--default-item "5" \
+	14 60 5 \
+	"1" "1024x768" \
+	"2" "800x600" \
+	"3" "640x480" \
+	"4" "320x240" \
+	"5" "Return" 3>&1 1>&2 2>&3)
 	return $OPTION_RES
 }
 
-menu_rotate(){
+function menu_rotate(){
 	OPTION_ROTATE=$(whiptail --title "SCREEN ROTATE" \
 	--menu "Screen rotate:$ROTATE°" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	--default-item "2" \
-	14 60 4 \
+	--default-item "5" \
+	14 60 5 \
 	"1" "0°" \
 	"2" "90°" \
 	"3" "180°" \
-	"4" "270°" 3>&1 1>&2 2>&3)
+	"4" "270°" \
+	"5" "Return" 3>&1 1>&2 2>&3)
+	return $OPTION_ROTATE
+}
+function menu_speed(){
+	OPTION_ROTATE=$(whiptail --title "SPI SPEED" \
+	--menu "SPI bus speed:$SPEED°" \
+	--backtitle "$BACKTITLE" \
+	--nocancel \
+	--default-item "5" \
+	14 60 5 \
+	"1" "80000000" \
+	"2" "72000000" \
+	"3" "64000000" \
+	"4" "64000000" \
+	"5" "Return" 3>&1 1>&2 2>&3)
 	return $OPTION_ROTATE
 }
 
@@ -158,10 +200,11 @@ function menu_blanking(){
 	--menu "Screen blanking:$SCREEN_BLANKING" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	--default-item "2" \
-	14 60 2 \
+	--default-item "3" \
+	14 60 3 \
 	"1" "Enable" \
-	"2" "Disble" 3>&1 1>&2 2>&3)
+	"2" "Disble" \
+	"3" "Return" 3>&1 1>&2 2>&3)
 	return $OPTION_BLANKING
 }
 
@@ -181,75 +224,72 @@ function menu_deviceselect(){
 	--menu "Please select your device:" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
+	--default-item "6" \
 	14 60 6 \
 	"1" "TFT 2.2\"" \
 	"2" "TFT 2.4\"" \
-	"3" "Raspi HD-TFT HAT 3.5\"" \
-	"4" "Raspi HD-TFT HAT 3.5\" Touchscreen" \
-	"5" "Exit."  3>&1 1>&2 2>&3)
-	return $OPTION
-}
-
-function menu_22(){
-	OPTION=$(whiptail --title "$TITLE" \
-	--menu "Select the appropriate options:" \
-	--backtitle "$BACKTITLE" \
-	--nocancel \
-	14 60 6 \
-	"1" "Output <$OUTPUT_DEVICE>." \
-	"2" "Resolution <$RESOLUTION>." \
-	"3" "Rotate <$ROTATE°>." \
-	"4" "Blanking <$SCREEN_BLANKING>." \
-	"5" "Apply new settings." \
+	"3" "HD-TFT HAT 3.5\"" \
+	"4" "HD-TFT HAT 3.5\" With Touch" \
+	"5" "Reset all settings to default" \
 	"6" "Exit."  3>&1 1>&2 2>&3)
 	return $OPTION
 }
 
-function menu_24(){
+# Menu of parameter settings
+function menu_22_24(){
 	OPTION=$(whiptail --title "$TITLE" \
-	--menu "Select the appropriate options:" \
+	--menu "TFT $DEVICE Screen parameter settings:" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	14 60 6 \
-	"1" "Rotate <$ROTATE°>." \
-	"2" "Blanking <$SCREEN_BLANKING>." \
-	"3" "Apply new settings." \
-	"4" "Return."  3>&1 1>&2 2>&3)
+	--default-item "7" \
+	14 60 7 \
+	"1" "Output <$OUTPUT_DEVICE>." \
+	"2" "Resolution <$RESOLUTION>." \
+	"3" "Rotate <$ROTATE°>." \
+	"4" "SPI Speed <$SPEED>." \
+	"5" "Blanking <$SCREEN_BLANKING>." \
+	"6" "Apply new settings." \
+	"7" "Return."  3>&1 1>&2 2>&3)
 	return $OPTION
 }
 
-function apply_hdmi(){
-	disable_tft
-	disable_cmdline_tft
-	disable_tftx
-	disable_fbcp
-}
-function apply_tft(){
-	RESOLUTION="320*240"
-	HDMIGROUP="2"
-	HDMIMODE="87"
+function apply_tft_22_24(){
+	enable_tft_cmdline
 	HDMICVT="320 240 60 1 0 0 0"
-	enable_tft
-	enable_cmdline_tft
-	enable_tftx
+	enable_tft_config
+	enable_tft_x
+	enable_both_x
 	disable_fbcp
 }
-function apply_both(){
-	enable_tft
-	disable_cmdline_tft
-	disable_tftx
+
+function apply_tft_hdmi(){
+	disable_tft_cmdline
+	enable_tft_config
+	enable_both_x
+	generate_touch_24
+	disable_tft_x
 	enable_fbcp
 }
+
 function apply(){
+	check_sysreq
+	HDMIGROUP=2
+	HDMIMODE=87
+	if [ "$RESOLUTION" == "1024x768" ]; then
+		HDMICVT="1024 768 60 1 0 0 0"
+	elif [ "$RESOLUTION" == "800x600" ]; then
+		HDMICVT="800 600 60 1 0 0 0"
+	elif [ "$RESOLUTION" == "640x480" ]; then
+		HDMICVT="640 480 60 1 0 0 0"
+	else
+		HDMICVT="320 240 60 1 0 0 0"
+	fi
 	case $OUTPUT_DEVICE in
-		"HDMI")
-		apply_hdmi
-		;;
 		"TFT")
-		apply_tft
+		apply_tft_22_24
 		;;
 		"BOTH")
-		apply_both
+		apply_tft_hdmi
 		;;
 	esac
 	case $SCREEN_BLANKING in 
@@ -262,130 +302,116 @@ function apply(){
 	esac
 	menu_reboot
 }
-function setup_22(){
-	menu_22
-	case $? in
-		1)
-		menu_outputdevice
+
+function setup_22_24(){
+	while true
+	do
+		menu_22_24
 		case $? in
 			1)
-			OUTPUT_DEVICE="HDMI"
-			RESOLUTION="Auto"
-			;;
-			2)
-			OUTPUT_DEVICE="TFT"
-			RESOLUTION="320x240"
-			;;
-			3)
-			OUTPUT_DEVICE="BOTH"
-			;;
-		esac
-		;;
-		2)
-		if [ "$OUTPUT_DEVICE" = "BOTH" ]; then
-			menu_resolution
-			case $? in 
+			menu_outputdevice
+			case $? in
 				1)
-				RESOLUTION="Auto"
-				;;
-				2)
-				RESOLUTION="800x600"
-				;;
-				3)
-				RESOLUTION="640x480"
-				;;
-				4)
+				OUTPUT_DEVICE="TFT"
 				RESOLUTION="320x240"
 				;;
-			esac
-		fi
-		;;
-		3)
-		if [ "$OUTPUT_DEVICE" != "HDMI" ]; then
-			menu_rotate
-			case $? in 
-				1)
-				ROTATE="0"
-				;;
 				2)
-				ROTATE="90"
+				OUTPUT_DEVICE="BOTH"
+				RESOLUTION="640x480"
 				;;
 				3)
-				ROTATE="180"
-				;;
-				4)
-				ROTATE="270"
 				;;
 			esac
-		fi
-		;;
-		4)
-		menu_blanking
-		case $? in 
-			1)
-			SCREEN_BLANKING="Yes"
 			;;
 			2)
-			SCREEN_BLANKING="No"
+			if [ "$OUTPUT_DEVICE" != "HDMI" ]; then
+				menu_resolution
+				case $? in 
+					1)
+					RESOLUTION="1024x768"
+					;;
+					2)
+					RESOLUTION="800x600"
+					;;
+					3)
+					RESOLUTION="640x480"
+					;;
+					4)
+					RESOLUTION="320x240"
+					;;
+					5)
+					;;
+				esac
+			else
+				RESOLUTION="Auto"
+			fi
+			
+			;;
+			3)
+			if [ "$OUTPUT_DEVICE" != "HDMI" ]; then
+				menu_rotate
+				case $? in 
+					1)
+					ROTATE="0"
+					;;
+					2)
+					ROTATE="90"
+					;;
+					3)
+					ROTATE="180"
+					;;
+					4)
+					ROTATE="270"
+					;;
+					5)
+					;;
+				esac
+			fi
+			;;
+			4)
+			menu_speed
+			case $? in
+				1)
+				SPEED="80000000"
+				;;
+				2)
+				SPEED="72000000"
+				;;
+				3)
+				SPEED="64000000"
+				;;
+				4)
+				SPEED="48000000"
+				;;
+				5)
+				;;
+			esac
+			;;
+			5)
+			menu_blanking
+			case $? in 
+				1)
+				SCREEN_BLANKING="Yes"
+				;;
+				2)
+				SCREEN_BLANKING="No"
+				;;
+				3)
+				;;
+			esac
+			;;
+			6)
+			apply
+			;;
+			7)
+			return
 			;;
 		esac
-		;;
-		5)
-		apply
-		;;
-		6)
-		echo "     [ UGEEK WORKSHOP ]"
-		echo "http://ugeek.aliexpress.com"
-		echo "http://ukonline2000.taobao.com"
-		exit 1
-		;;
-	esac
+	done
 }
 
-function enable_tft24(){
-	# dpkg -l "xserver-xorg-input-evdev"
-	# sudo apt install xserver-xorg-input-evdev
-	# if [ ! -d /etc/X11/xorg.conf.d ]; then
-		# sudo mkdir -p /etc/X11/xorg.conf.d
-	# fi
-	# echo "hdmi_force_hotplug=1" >> boot/config.txt
-	# echo "dtparam=i2c_arm=on" >> boot/config.txt
-	# echo "dtparam=spi=on" >> boot/config.txt
-	# echo "enable_uart=1" >> boot/config.txt
-	echo "Setup 2.4\" screen"
-
-	if [ -f /etc/X11/xorg.conf.d/40-libinput.conf ]; then
-		echo "rm -rf /etc/X11/xorg.conf.d/40-libinput.conf"
-		sudo rm -rf /etc/X11/xorg.conf.d/40-libinput.conf
-	fi
-	if [ ! -d /etc/X11/xorg.conf.d ]; then
-		echo "mkdir -p /etc/X11/xorg.conf.d"
-		sudo mkdir -p /etc/X11/xorg.conf.d
-	fi
-
-	#root_dev=`grep -oPr "root=[^\s]*" /boot/cmdline.txt | awk -F= '{printf $NF}'`
-	# 修改/boot/cmdline.txt
-	echo "patch cmdline.txt"
-	disable_cmdline_tft
-	enable_cmdline_tft
-
-	# 修改Config文件
-	echo "patch /boot/config.txt"
-
-	sed -i '/^dtoverlay=pitft/d' $CONFIG
-	sed -i '/^hdmi_mode=/d' $CONFIG
-	sed -i '/^hdmi_group=/d' $CONFIG
-	sed -i '/^hdmi_cvt=/d' $CONFIG
-	sed -i '/^hdmi_force_hotplug=/d' $CONFIG
-	sed -i '/^dtparam=i2c_arm=/d' $CONFIG
-	sed -i '/^dtparam=spi=/d' $CONFIG
-
-	echo "hdmi_force_hotplug=1" >> $CONFIG
-	echo "dtparam=i2c_arm=on" >> $CONFIG
-	echo "dtparam=spi=on" >> $CONFIG
-	echo "dtoverlay=pitft28-resistive,rotate=$ROTATE,speed=48000000,fps=30" >> $CONFIG
-
-	echo "generate /etc/X11/xorg.conf.d/99-calibration.conf"
+function generate_touch_24(){
+	echo "generate $FILE_CALIBRATION"
 	# 根据选择的方向生成校准文件
 	case $ROTATE in
 		0)
@@ -405,7 +431,7 @@ function enable_tft24(){
 		TRANSFORM=$TRANSFORM_24r270
 		;;
 	esac
-	cat << EOF > /etc/X11/xorg.conf.d/99-calibration.conf
+	cat << EOF > $FILE_CALIBRATION
 Section "InputClass"
         Identifier "STMPE Touchscreen Calibration"
         MatchProduct "stmpe"
@@ -414,68 +440,32 @@ Section "InputClass"
         Option "TransformationMatrix" "$TRANSFORM"
 EndSection
 EOF
+}
+
+function enable_tft24(){
+	echo "Setup 2.4\" screen"
+	sys_reset
+
+	if [ -f /etc/X11/xorg.conf.d/40-libinput.conf ]; then
+		echo "rm -rf /etc/X11/xorg.conf.d/40-libinput.conf"
+		sudo rm -rf /etc/X11/xorg.conf.d/40-libinput.conf
+	fi
+	if [ ! -d /etc/X11/xorg.conf.d ]; then
+		echo "mkdir -p /etc/X11/xorg.conf.d"
+		sudo mkdir -p /etc/X11/xorg.conf.d
+	fi
+
+	enable_tft_cmdline
+	enable_tft_config
+	generate_touch_24
 	echo "enable desktop"
 	# 启用桌面
-	enable_tftx
+	enable_tft_x
 
-	# 安装xserver-xorg-input-evdev
-	echo "install software"
-	SOFT=$(dpkg -l $SOFTWARE_LIST | grep "<none>")
-	if [ -n "$SOFT" ]; then
-		echo "test"
-		apt update
-		apt -y install $SOFTWARE_LIST
-	fi
-	#sudo dpkg -i -B ./xserver-xorg-input-evdev_2.10.5-1_armhf.deb 2> error_output.txt
-	#sudo cp -rf /usr/share/X11/xorg.conf.d/10-evdev.conf /usr/share/X11/xorg.conf.d/45-evdev.conf
-
-	sudo sync
 	sudo sync
 	sleep 1
 }
 
-function setup_24(){
-	menu_24
-	case $? in
-		1)
-		menu_rotate
-		case $? in
-			1)
-			ROTATE="0"
-			;;
-			2)
-			ROTATE="90"
-			;;
-			3)
-			ROTATE="180"
-			;;
-			4)
-			ROTATE="270"
-			;;
-		esac
-		setup_24
-		;;
-		2)
-		menu_blanking
-		case $? in 
-			1)
-			SCREEN_BLANKING="Yes"
-			;;
-			2)
-			SCREEN_BLANKING="No"
-			;;
-		esac
-		;;
-		3)
-		enable_tft24
-		menu_reboot
-		;;
-		4)
-		menu_deviceselect
-		;;
-	esac
-	return
-}
 function setup_35(){
 	return
 }
@@ -619,28 +609,41 @@ function setup_35t(){
 	enable_35t
 	menu_reboot
 }
+
+# Reset all settings to default
+function sys_reset(){
+	disable_tft
+	disable_cmdline_tft
+	disable_tftx
+	disable_fbcp
+}
+
+# Permission detection
 if [ $UID -ne 0 ]; then
 	whiptail --title "UGEEK WORKSHOP" \
 	--msgbox "Superuser privileges are required to run this script.\ne.g. \"sudo $0\"" 10 60
     exit 1
 fi
-# whiptail --title "$TITLE" --msgbox "Setup tools for ugeek screens.\nhttp://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com" --backtitle "$BACKTITLE" 10 60
-menu_deviceselect
-case $? in
+
+#whiptail --title "$TITLE" --msgbox "Setup tools for ugeek screens.\nhttp://ugeek.aliexpress.com\nhttp://ukonline2000.taobao.com" --backtitle "$BACKTITLE" 10 60
+while true
+do
+	menu_deviceselect
+	case $? in
 		1)
 		DEVICE="2.2"
-		setup_22
+		setup_22_24
 		;;
 		2)
 		DEVICE="2.4"
-		setup_24
+		setup_22_24
 		;;
 		3)
 		DEVICE="3.5"
 		if (whiptail --title "$TITLE" \
-			--yes-button "Continue" \
-			--no-button "Exit" \
-			--yesno "Install 3.5\" screen?" 10 60) then
+			yes-button "Continue" \
+			no-button "Exit" \
+			yesno "Install 3.5\" screen?" 10 60) then
 		disable_35
 		enable_35
 		fi
@@ -649,9 +652,9 @@ case $? in
 		4)
 		DEVICE="3.5t"
 		if (whiptail --title "$TITLE" \
-			--yes-button "Continue" \
-			--no-button "Exit" \
-			--yesno "Install 3.5\" screen with touch?" 10 60) then
+			yes-button "Continue" \
+			no-button "Exit" \
+			yesno "Install 3.5\" screen with touch?" 10 60) then
 		setup_35t
 		menu_reboot
 		else
@@ -659,7 +662,13 @@ case $? in
 		fi
 		;;
 		5)
+		sys_reset
+		;;
+		6)
+		echo "     [ UGEEK WORKSHOP ]"
+		echo "http://ugeek.aliexpress.com"
+		echo "http://ukonline2000.taobao.com"
 		exit 1
 		;;
-esac
-
+	esac
+done
