@@ -10,10 +10,10 @@ sudo ./screen_setup.sh
           │                                                          │
           │           1 TFT 2.2"                                     │
           │           2 TFT 2.4"                                     │
-          │           3 Raspi HD-TFT HAT 3.5"                        │
-          │           4 Raspi HD-TFT HAT 3.5" Touchscreen            │
-          │           5 Exit.                                        │
-          │                                                          │
+          │           3 HD-TFT HAT 3.5"                              │
+          │           4 HD-TFT HAT 3.5" With Touch                   │
+          │           5 Reset RPi settings to default                │
+          │           6 Exit.                                        │
           │                                                          │
           │                                                          │
           │                          <Ok>                            │

@@ -8,6 +8,7 @@ SPEED="80000000"
 ROTATE="90"
 FPS="60"
 RESOLUTION="640x480"
+RESOLUTION_TEMP="640x480"
 HDMIGROUP="2"
 HDMIMODE="4"
 HDMICVT=""
@@ -25,6 +26,13 @@ SOFTWARE_LIST="xserver-xorg-input-evdev xserver-xorg-input-libinput python-dev p
 FILE_FBTURBO="/etc/X11/xorg.conf.d/99-fbturbo.conf"
 FILE_CALIBRATION="/etc/X11/xorg.conf.d/99-calibration.conf"
 XRANDRSETTINGS="/etc/X11/Xsession.d/45-custom_xrandr-settings"
+DI_OUTPUTDEVICE=1
+DI_RESOLUTION=1
+DI_ROTATE=1
+DI_SPEED=1
+DI_BLANKING=1
+DI_DEVICESELECT=1
+DI_22_24=1
 
 function check_sysreq(){
 	SOFT=$(dpkg -l $SOFTWARE_LIST | grep "un  ")
@@ -112,7 +120,7 @@ function disable_tft_x(){
 }
 
 function enable_both_x(){
-	echo "xrandr --output HDMI-1 --mode \"$RESOLUTION\"" > $XRANDRSETTINGS
+	echo "xrandr --output HDMI-1 --mode \"$RESOLUTION_TEMP\"" > $XRANDRSETTINGS
 }
 
 function disable_both_x(){
@@ -128,7 +136,7 @@ function disable_fbcp(){
 function enable_fbcp(){
 	if [ ! -f "$FBCP" ]; then
 		if [ -f "bin/fbcp" ]; then
-			sudo cp -a /bin/fbcp $FBCP
+			sudo cp -a bin/fbcp $FBCP
 		else
 			wget https://github.com/howardqiao/zpod/raw/master/zpod_res/fbcp -O $FBCP
 			chmod +x $FBCP
@@ -143,7 +151,7 @@ function menu_outputdevice(){
 	--backtitle "$BACKTITLE" \
 	--nocancel \
 	--menu "OUTPUT DEVICE:$OUTPUT_DEVICE" \
-	--default-item "3" \
+	--default-item "$DI_OUTPUTDEVICE" \
 	14 60 3 \
 	"1" "TFT" \
 	"2" "HDMI & TFT" \
@@ -156,7 +164,7 @@ function menu_resolution(){
 	--backtitle "$BACKTITLE" \
 	--nocancel \
 	--menu "Screen resolution:$RESOLUTION" \
-	--default-item "5" \
+	--default-item "$DI_RESOLUTION" \
 	14 60 5 \
 	"1" "1024x768" \
 	"2" "800x600" \
@@ -171,7 +179,7 @@ function menu_rotate(){
 	--menu "Screen rotate:$ROTATE°" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	--default-item "5" \
+	--default-item "$DI_ROTATE" \
 	14 60 5 \
 	"1" "0°" \
 	"2" "90°" \
@@ -185,7 +193,7 @@ function menu_speed(){
 	--menu "SPI bus speed:$SPEED°" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	--default-item "5" \
+	--default-item "$DI_SPEED" \
 	14 60 5 \
 	"1" "80000000" \
 	"2" "72000000" \
@@ -200,7 +208,7 @@ function menu_blanking(){
 	--menu "Screen blanking:$SCREEN_BLANKING" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	--default-item "3" \
+	--default-item "$DI_BLANKING" \
 	14 60 3 \
 	"1" "Enable" \
 	"2" "Disble" \
@@ -224,13 +232,13 @@ function menu_deviceselect(){
 	--menu "Please select your device:" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	--default-item "6" \
+	--default-item "$DI_DEVICESELECT" \
 	14 60 6 \
 	"1" "TFT 2.2\"" \
 	"2" "TFT 2.4\"" \
 	"3" "HD-TFT HAT 3.5\"" \
 	"4" "HD-TFT HAT 3.5\" With Touch" \
-	"5" "Reset all settings to default" \
+	"5" "Reset RPi config to default" \
 	"6" "Exit."  3>&1 1>&2 2>&3)
 	return $OPTION
 }
@@ -241,7 +249,7 @@ function menu_22_24(){
 	--menu "TFT $DEVICE Screen parameter settings:" \
 	--backtitle "$BACKTITLE" \
 	--nocancel \
-	--default-item "7" \
+	--default-item "$DI_22_24" \
 	14 60 7 \
 	"1" "Output <$OUTPUT_DEVICE>." \
 	"2" "Resolution <$RESOLUTION>." \
@@ -254,16 +262,27 @@ function menu_22_24(){
 }
 
 function apply_tft_22_24(){
+	sys_reset
 	enable_tft_cmdline
-	HDMICVT="320 240 60 1 0 0 0"
+	if [[ "$ROTATE" == "0" ]] || [[ "$ROTATE" == "180" ]]; then
+		HDMICVT="240 320 60 1 0 0 0"
+	else
+		HDMICVT="320 240 60 1 0 0 0"
+	fi
 	enable_tft_config
-	enable_tft_x
+	if [ ! -d "/etc/X11/xorg.conf.d" ]; then
+		mkdir /etc/X11/xorg.conf.d
+	fi
+	#enable_tft_x
 	enable_both_x
+	if [ "$DEVICE" == "2.4" ]; then
+		generate_touch_24
+	fi
 	disable_fbcp
 }
 
 function apply_tft_hdmi(){
-	disable_tft_cmdline
+	sys_reset
 	enable_tft_config
 	enable_both_x
 	generate_touch_24
@@ -276,13 +295,37 @@ function apply(){
 	HDMIGROUP=2
 	HDMIMODE=87
 	if [ "$RESOLUTION" == "1024x768" ]; then
-		HDMICVT="1024 768 60 1 0 0 0"
+		if [[ "$ROTATE" == "0" ]] || [[ "$ROTATE" == "180" ]]; then
+			HDMICVT="768 1024 60 1 0 0 0"
+			RESOLUTION_TEMP="768x1024"
+		else
+			HDMICVT="1024 768 60 1 0 0 0"
+			RESOLUTION_TEMP="1024x768"
+		fi
 	elif [ "$RESOLUTION" == "800x600" ]; then
-		HDMICVT="800 600 60 1 0 0 0"
+		if [[ "$ROTATE" == "0" ]] || [[ "$ROTATE" == "180" ]]; then
+			HDMICVT="600 800 60 1 0 0 0"
+			RESOLUTION_TEMP="600x800"
+		else
+			HDMICVT="800 600 60 1 0 0 0"
+			RESOLUTION_TEMP="800x600"
+		fi
 	elif [ "$RESOLUTION" == "640x480" ]; then
-		HDMICVT="640 480 60 1 0 0 0"
+		if [[ "$ROTATE" == "0" ]] || [[ "$ROTATE" == "180" ]]; then
+			HDMICVT="480 640 60 1 0 0 0"
+			RESOLUTION_TEMP="480x640"
+		else
+			HDMICVT="640 480 60 1 0 0 0"
+			RESOLUTION_TEMP="640x480"
+		fi
 	else
-		HDMICVT="320 240 60 1 0 0 0"
+		if [[ "$ROTATE" == "0" ]] || [[ "$ROTATE" == "180" ]]; then
+			HDMICVT="240 320 60 1 0 0 0"
+			RESOLUTION_TEMP="240x320"
+		else
+			HDMICVT="320 240 60 1 0 0 0"
+			RESOLUTION_TEMP="320x240"
+		fi
 	fi
 	case $OUTPUT_DEVICE in
 		"TFT")
@@ -309,101 +352,130 @@ function setup_22_24(){
 		menu_22_24
 		case $? in
 			1)
+			DI_22_24=1
 			menu_outputdevice
 			case $? in
 				1)
+				DI_OUTPUTDEVICE=1
 				OUTPUT_DEVICE="TFT"
 				RESOLUTION="320x240"
 				;;
 				2)
+				DI_OUTPUTDEVICE=2
 				OUTPUT_DEVICE="BOTH"
 				RESOLUTION="640x480"
 				;;
 				3)
+				DI_OUTPUTDEVICE=3
 				;;
 			esac
 			;;
 			2)
-			if [ "$OUTPUT_DEVICE" != "HDMI" ]; then
+			DI_22_24=2
+			if [ "$OUTPUT_DEVICE" == "TFT" ]; then
+				RESOLUTION="320x240"
+			elif [ "$OUTPUT_DEVICE" == "BOTH" ]; then
 				menu_resolution
 				case $? in 
 					1)
+					DI_RESOLUTION=1
 					RESOLUTION="1024x768"
 					;;
 					2)
+					DI_RESOLUTION=2
 					RESOLUTION="800x600"
 					;;
 					3)
+					DI_RESOLUTION=3
 					RESOLUTION="640x480"
 					;;
 					4)
+					DI_RESOLUTION=4
 					RESOLUTION="320x240"
 					;;
 					5)
+					DI_RESOLUTION=5
 					;;
 				esac
 			else
 				RESOLUTION="Auto"
 			fi
-			
 			;;
 			3)
+			DI_22_24=3
 			if [ "$OUTPUT_DEVICE" != "HDMI" ]; then
 				menu_rotate
 				case $? in 
 					1)
+					DI_ROTATE=1
 					ROTATE="0"
 					;;
 					2)
+					DI_ROTATE=2
 					ROTATE="90"
 					;;
 					3)
+					DI_ROTATE=3
 					ROTATE="180"
 					;;
 					4)
+					DI_ROTATE=4
 					ROTATE="270"
 					;;
 					5)
+					DI_ROTATE=5
 					;;
 				esac
 			fi
 			;;
 			4)
+			DI_22_24=4
 			menu_speed
 			case $? in
 				1)
+				DI_SPEED=1
 				SPEED="80000000"
 				;;
 				2)
+				DI_SPEED=2
 				SPEED="72000000"
 				;;
 				3)
+				DI_SPEED=3
 				SPEED="64000000"
 				;;
 				4)
+				DI_SPEED=4
 				SPEED="48000000"
 				;;
 				5)
+				DI_SPEED=5
 				;;
 			esac
 			;;
 			5)
+			DI_22_24=5
 			menu_blanking
 			case $? in 
 				1)
+				DI_BLANKING=1
 				SCREEN_BLANKING="Yes"
 				;;
 				2)
+				DI_BLANKING=2
 				SCREEN_BLANKING="No"
 				;;
 				3)
+				DI_BLANKING=3
 				;;
 			esac
 			;;
 			6)
+			DI_22_24=6
 			apply
 			;;
 			7)
+			DI_22_24=7
 			return
 			;;
 		esac
@@ -411,23 +483,18 @@ function setup_22_24(){
 }
 
 function generate_touch_24(){
-	echo "generate $FILE_CALIBRATION"
-	# 根据选择的方向生成校准文件
+	# generate calibration file according to the ratate
 	case $ROTATE in
 		0)
-		echo "ROTATE <none>"
 		TRANSFORM=$TRANSFORM_24r0
 		;;
 		90)
-		echo "ROTATE 90"
 		TRANSFORM=$TRANSFORM_24r90
 		;;
 		180)
-		echo "ROTATE 180"
 		TRANSFORM=$TRANSFORM_24r180
 		;;
 		270)
-		echo "ROTATE 270"
 		TRANSFORM=$TRANSFORM_24r270
 		;;
 	esac
@@ -440,34 +507,6 @@ Section "InputClass"
         Option "TransformationMatrix" "$TRANSFORM"
 EndSection
 EOF
-}
-
-function enable_tft24(){
-	echo "Setup 2.4\" screen"
-	sys_reset
-
-	if [ -f /etc/X11/xorg.conf.d/40-libinput.conf ]; then
-		echo "rm -rf /etc/X11/xorg.conf.d/40-libinput.conf"
-		sudo rm -rf /etc/X11/xorg.conf.d/40-libinput.conf
-	fi
-	if [ ! -d /etc/X11/xorg.conf.d ]; then
-		echo "mkdir -p /etc/X11/xorg.conf.d"
-		sudo mkdir -p /etc/X11/xorg.conf.d
-	fi
-
-	enable_tft_cmdline
-	enable_tft_config
-	generate_touch_24
-	echo "enable desktop"
-	# 启用桌面
-	enable_tft_x
-
-	sudo sync
-	sleep 1
-}
-
-function setup_35(){
-	return
 }
 
 function disable_35(){
@@ -612,9 +651,9 @@ function setup_35t(){
 
 # Reset all settings to default
 function sys_reset(){
-	disable_tft
-	disable_cmdline_tft
-	disable_tftx
+	disable_tft_config
+	disable_tft_cmdline
+	disable_tft_x
 	disable_fbcp
 }
 
@@ -631,14 +670,17 @@ do
 	menu_deviceselect
 	case $? in
 		1)
+		DI_DEVICESELECT=1
 		DEVICE="2.2"
 		setup_22_24
 		;;
 		2)
+		DI_DEVICESELECT=2
 		DEVICE="2.4"
 		setup_22_24
 		;;
 		3)
+		DI_DEVICESELECT=3
 		DEVICE="3.5"
 		if (whiptail --title "$TITLE" \
 			yes-button "Continue" \
@@ -650,6 +692,7 @@ do
 		menu_reboot
 		;;
 		4)
+		DI_DEVICESELECT=4
 		DEVICE="3.5t"
 		if (whiptail --title "$TITLE" \
 			yes-button "Continue" \
@@ -662,9 +705,12 @@ do
 		fi
 		;;
 		5)
+		DI_DEVICESELECT=5
 		sys_reset
+		menu_reboot
 		;;
 		6)
+		DI_DEVICESELECT=6
 		echo "     [ UGEEK WORKSHOP ]"
 		echo "http://ugeek.aliexpress.com"
 		echo "http://ukonline2000.taobao.com"
