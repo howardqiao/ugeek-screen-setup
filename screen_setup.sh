@@ -484,6 +484,9 @@ function setup_22_24(){
 
 function generate_touch_24(){
 	# generate calibration file according to the ratate
+	if [ ! -d "/etc/X11/xorg.conf.d/" ]; then
+		mkdir /etc/X11/xorg.conf.d
+	fi
 	case $ROTATE in
 		0)
 		TRANSFORM=$TRANSFORM_24r0
