@@ -100,7 +100,7 @@ function disable_blanking(){
 }
 
 function enable_tft_x(){
-	if [ -e "/usr/share/X11/xorg.conf.d/99-fbturbo.conf" ] ; then
+	if [ -e "$FILE_FBTURBO" ] ; then
 		rm $FILE_FBTURBO
 	fi
 	touch $FILE_FBTURBO
@@ -276,7 +276,7 @@ function apply_tft_22_24(){
 	if [ ! -d "/etc/X11/xorg.conf.d" ]; then
 		mkdir /etc/X11/xorg.conf.d
 	fi
-	#enable_tft_x
+	enable_tft_x
 	enable_both_x
 	if [ "$DEVICE" == "2.4" ]; then
 		generate_touch_24
