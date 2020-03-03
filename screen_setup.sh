@@ -114,7 +114,7 @@ EOF
 }
 
 function disable_tft_x(){
-	if [ -e "$FILE_FB_TURBO" ] ; then
+	if [ -e "$FILE_FBTURBO" ] ; then
 		rm $FILE_FBTURBO
 	fi
 }
