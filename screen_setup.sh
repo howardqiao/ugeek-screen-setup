@@ -136,11 +136,14 @@ function disable_fbcp(){
 function enable_fbcp(){
 	if [ ! -f "$FBCP" ]; then
 		if [ -f "bin/fbcp" ]; then
+			chmod +x bin/fbcp
 			sudo cp -a bin/fbcp $FBCP
 		else
 			wget https://github.com/howardqiao/zpod/raw/master/zpod_res/fbcp -O $FBCP
 			chmod +x $FBCP
 		fi
+	else
+		chmod +x $FBCP
 	fi
 	disable_fbcp
 	sed -i '/exit 0/i\/usr\/local\/bin\/fbcp &' /etc/rc.local
